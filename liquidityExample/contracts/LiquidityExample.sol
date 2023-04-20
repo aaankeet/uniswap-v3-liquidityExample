@@ -6,12 +6,14 @@ import "@uniswap/v3-core/contracts/libraries/TickMath.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import "@uniswap/v3-periphery/contracts/libraries/TransferHelper.sol";
 import "@uniswap/v3-periphery/contracts/interfaces/INonfungiblePositionManager.sol";
+import "hardhat/console.sol";
 
 contract LiquidityExamples is IERC721Receiver {
     address public constant DAI = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
     address public constant USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
 
-    uint24 public constant poolFee = 3000;
+    // Pool Fee 0.01%
+    uint24 public constant poolFee = 100;
 
     INonfungiblePositionManager public constant nonfungiblePositionManager =
         INonfungiblePositionManager(0xC36442b4a4522E871399CD717aBDD847Ab11FE88);
@@ -26,6 +28,8 @@ contract LiquidityExamples is IERC721Receiver {
 
     /// @dev deposits[tokenId] => Deposit
     mapping(uint256 => Deposit) public deposits;
+
+    uint public _tokenId;
 
     // Implementing `onERC721Received` so this contract can receive custody of erc721 tokens
     function onERC721Received(
@@ -84,8 +88,8 @@ contract LiquidityExamples is IERC721Receiver {
     {
         // For this example, we will provide equal amounts of liquidity in both assets.
         // Providing liquidity in both assets means liquidity will be earning fees and is considered in-range.
-        uint256 amount0ToMint = 100 * 1e18;
-        uint256 amount1ToMint = 100 * 1e6;
+        uint256 amount0ToMint = 500 * 1e18;
+        uint256 amount1ToMint = 500 * 1e6;
 
         // transfer tokens to contract
         TransferHelper.safeTransferFrom(
@@ -134,6 +138,7 @@ contract LiquidityExamples is IERC721Receiver {
 
         // Create a deposit
         _createDeposit(msg.sender, tokenId);
+        _tokenId = tokenId;
 
         // Remove allowance and refund in both assets.
         if (amount0 < amount0ToMint) {
@@ -155,6 +160,9 @@ contract LiquidityExamples is IERC721Receiver {
             uint256 refund1 = amount1ToMint - amount1;
             TransferHelper.safeTransfer(USDC, msg.sender, refund1);
         }
+
+        console.log("TokenId:", tokenId);
+        console.log("Liquidity:", liquidity);
     }
 
     /// @notice Collects the fees associated with provided liquidity
@@ -179,7 +187,7 @@ contract LiquidityExamples is IERC721Receiver {
 
         (amount0, amount1) = nonfungiblePositionManager.collect(params);
 
-        // send collected feed back to owner
+        // send collected fees back to owner
         _sendToOwner(tokenId, amount0, amount1);
     }
 
@@ -263,6 +271,8 @@ contract LiquidityExamples is IERC721Receiver {
 
         (liquidity, amount0, amount1) = nonfungiblePositionManager
             .increaseLiquidity(params);
+
+        console.log("Liquidity:", liquidity);
     }
 
     /// @notice Transfers funds to owner of NFT
